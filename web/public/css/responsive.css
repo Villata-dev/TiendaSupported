@@ -1,46 +1,77 @@
 @media (max-width: 768px) {
     .container {
         padding: 1rem;
+        background-color: var(--background-color);
+    }
+
+    .auth-card {
+        margin: 1rem;
+        border-radius: 1.5rem;
+        box-shadow: var(--shadow-sm);
     }
 
     .header {
         flex-direction: column;
         align-items: flex-start;
         gap: 1rem;
+        padding: 1.5rem;
+        background-color: var(--card-background);
+        border-radius: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .filters-card {
+        padding: 1rem;
+        border-radius: 1rem;
+        background-color: var(--card-background);
     }
 
     .form-grid {
         grid-template-columns: 1fr;
+        gap: 1.25rem;
     }
 
     .filters {
         flex-direction: column;
+        gap: 1rem;
     }
 
-    .filter-select, .search-input {
+    .filter-select, 
+    .search-input {
         width: 100%;
+        padding: 0.75rem;
+        border-radius: 0.75rem;
+        border: 1px solid var(--border-color);
     }
 
     .pagination {
         flex-direction: column;
         gap: 1rem;
+        padding: 1rem;
+        background-color: var(--card-background);
+        border-radius: 1rem;
     }
 
     .pagination-controls {
         flex-direction: column;
         width: 100%;
+        gap: 1rem;
     }
 
     .page-buttons {
         width: 100%;
         justify-content: space-around;
+        gap: 0.5rem;
     }
 
     .products-table {
         font-size: 0.9em;
+        border-radius: 1rem;
+        overflow: hidden;
     }
 
-    .products-table th, .products-table td {
+    .products-table th, 
+    .products-table td {
         padding: 0.75rem;
     }
 }

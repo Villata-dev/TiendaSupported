@@ -8,16 +8,20 @@ class EditableList extends HTMLElement {
     static get styles() {
         return `
             :host {
-                --primary-color: #3B82F6;
-                --primary-hover: #2563EB;
-                --error-color: #EF4444;
-                --border-radius: 0.5rem;
+                --primary-color: #6366F1;
+                --primary-hover: #4F46E5;
+                --error-color: #F87171;
+                --border-radius: 0.75rem;
                 display: block;
                 font-family: 'Inter', system-ui, -apple-system, sans-serif;
             }
             
             .product-list {
                 width: 100%;
+                background-color: var(--card-background);
+                border-radius: var(--border-radius);
+                overflow: hidden;
+                box-shadow: var(--shadow-sm);
             }
             
             table {
@@ -27,23 +31,24 @@ class EditableList extends HTMLElement {
                 margin-top: 1.5rem;
             }
             
-            th, td {
-                padding: 1rem;
-                text-align: left;
-                border-bottom: 1px solid #E5E7EB;
-            }
-            
             th {
-                background-color: #F9FAFB;
+                background-color: var(--hover-background);
                 font-weight: 500;
-                color: #4B5563;
+                color: var(--text-color);
                 font-size: 0.875rem;
                 text-transform: uppercase;
                 letter-spacing: 0.05em;
+                padding: 1rem;
+            }
+            
+            td {
+                padding: 1rem;
+                color: var(--text-color);
+                border-bottom: 1px solid var(--border-color);
             }
             
             tr:hover td {
-                background-color: #F3F4F6;
+                background-color: var(--hover-background);
             }
             
             .actions {
@@ -58,7 +63,7 @@ class EditableList extends HTMLElement {
                 cursor: pointer;
                 font-size: 0.875rem;
                 font-weight: 500;
-                transition: all 0.15s ease;
+                transition: var(--transition-speed) var(--transition-timing);
             }
             
             .edit-btn {

@@ -75,7 +75,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Función para manejar errores de fetch
     const handleFetchError = async (response) => {
-        const data = await response.json().catch(() => ({ message: 'Error de respuesta del servidor.' }));
+        const data = await response.json().catch(() => ({ 
+            message: response.status === 409 ? 
+                'El usuario ya existe' : 
+                'Error de respuesta del servidor.' 
+        }));
         if (!response.ok) {
             throw new Error(data.message || `Error ${response.status}: ${response.statusText}`);
         }

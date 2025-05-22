@@ -1,13 +1,30 @@
 /* Colores y variables */
 :root {
-    --primary-color: #3B82F6;
-    --primary-hover: #2563EB;
-    --background-color: #F3F4F6;
-    --card-background: #FFFFFF;
-    --text-color: #1F2937;
-    --border-color: #E5E7EB;
-    --error-color: #EF4444;
-    --success-color: #10B981;
+    /* Paleta principal */
+    --primary-color: #6366F1;     /* Índigo moderno */
+    --primary-hover: #4F46E5;     /* Índigo oscuro para hover */
+    --background-color: #F8FAFC;  /* Fondo suave gris-azulado */
+    --card-background: #FFFFFF;   /* Blanco para tarjetas */
+    
+    /* Textos */
+    --text-color: #4B5563;        /* Gris oscuro suave para texto */
+    --text-light: #94A3B8;        /* Gris claro para texto secundario */
+    
+    /* Acentos y estados */
+    --border-color: #E2E8F0;      /* Bordes suaves */
+    --error-color: #F87171;       /* Rojo suave */
+    --success-color: #34D399;     /* Verde menta */
+    --warning-color: #FBBF24;     /* Amarillo suave */
+    
+    /* Elementos interactivos */
+    --hover-background: #F1F5F9;  /* Fondo hover suave */
+    --active-background: #E2E8F0; /* Fondo activo */
+    
+    /* Sombras */
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    
+    /* Transiciones */
     --transition-speed: 0.3s;
     --transition-timing: ease;
 }
@@ -19,12 +36,12 @@
     box-sizing: border-box;
 }
 
+/* Estilos base */
 body {
-    font-family: 'Inter', system-ui, -apple-system, sans-serif;
     background-color: var(--background-color);
     color: var(--text-color);
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
     line-height: 1.5;
-    min-height: 100vh;
 }
 
 .container {
@@ -47,7 +64,7 @@ body {
 
 /* Formularios */
 .form-group {
-    margin-bottom: 1rem;
+    margin-bottom: 1.5rem;
 }
 
 label {
@@ -100,9 +117,14 @@ input.error:focus {
 .card {
     background-color: var(--card-background);
     padding: 1.5rem;
-    border-radius: 0.5rem;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    border-radius: 1rem;
+    box-shadow: var(--shadow-sm);
     margin-bottom: 1.5rem;
+    transition: box-shadow var(--transition-speed) var(--transition-timing);
+}
+
+.card:hover {
+    box-shadow: var(--shadow-md);
 }
 
 /* Sección de productos */
@@ -194,12 +216,13 @@ input.error:focus {
 .btn {
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     padding: 0.75rem 1.5rem;
-    border: none;
-    border-radius: 0.5rem;
+    border-radius: 0.75rem;
     font-weight: 500;
+    transition: all var(--transition-speed) var(--transition-timing);
     cursor: pointer;
-    transition: all 0.15s ease;
+    border: none;
     position: relative;
     overflow: hidden;
 }
@@ -229,6 +252,7 @@ input.error:focus {
 
 .btn-primary:hover {
     background-color: var(--primary-hover);
+    transform: translateY(-1px);
 }
 
 .btn-danger {

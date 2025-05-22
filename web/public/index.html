@@ -5,11 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tienda Supported</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/css/style.css">
-</head>
+    <link rel="stylesheet" href="/static/css/style.css"> </head>
 <body>
     <div class="container">
-        <!-- Sección de autenticación -->
         <div id="auth-section">
             <div class="auth-card">
                 <div class="card-header">
@@ -54,7 +52,6 @@
             </div>
         </div>
 
-        <!-- Nueva sección de productos -->
         <div id="products-section" class="products-section" style="display: none;">
             <div class="header">
                 <h1>Gestión de Productos</h1>
@@ -89,7 +86,6 @@
                 </div>
             </div>
 
-            <!-- Modificar el formulario de productos -->
             <div class="product-form-card animate-in">
                 <div class="product-form-header">
                     <h2>Agregar Producto</h2>
@@ -123,7 +119,6 @@
                 </form>
             </div>
 
-            <!-- Modificar la lista de productos -->
             <div class="products-list-card animate-in">
                 <h2>Lista de Productos</h2>
                 <table class="products-table">
@@ -141,7 +136,6 @@
                 </table>
             </div>
 
-            <!-- Agregar después de la tabla de productos -->
             <div class="pagination">
                 <div class="pagination-info">
                     <span>Mostrando <span id="showing-start">0</span>-<span id="showing-end">0</span> de <span id="total-items">0</span> productos</span>
@@ -197,7 +191,5 @@
         </div>
     </div>
 
-    <script src="/js/validators.js"></script>
-    <script src="/js/app.js"></script>
-</body>
+    <script type="module" src="/static/js/validators.js"></script> <script type="module" src="/static/js/app.js"></script>     </body>
 </html>

@@ -1,3 +1,5 @@
+// TiendaSupported/web/public/js/validators.js
+
 const validators = {
     required: (value) => {
         return value !== null && value !== undefined && value.toString().trim() !== '';
@@ -20,7 +22,8 @@ const validators = {
     }
 };
 
-const validateProduct = (product) => {
+// Exportar la función para que pueda ser importada en app.js
+export const validateProduct = (product) => {
     const errors = {};
     
     if (!validators.required(product.name)) {

@@ -1,6 +1,11 @@
-// Declarar las funciones en el scope global
-let editProduct;
-let deleteProduct;
+// TiendaSupported/web/public/js/app.js
+
+// Importar funciones de validación
+import { validateProduct } from '/static/js/validators.js'; // Ruta corregida y exportación
+
+// Declarar las funciones en el scope global para que puedan ser llamadas desde el HTML
+window.editProduct = null;
+window.deleteProduct = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
     // Referencias a elementos del DOM
@@ -12,7 +17,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const toggleLoginBtn = document.getElementById('toggle-login');
     const loginDiv = document.getElementById('login-form');
     const registerDiv = document.getElementById('register-form');
-    const productList = document.querySelector('editable-list');
+    const productsTbody = document.getElementById('products-tbody'); // Referencia a la tabla de productos
     const editModal = document.getElementById('edit-modal');
     const editForm = document.getElementById('edit-form');
     const closeModalButtons = document.querySelectorAll('.close-modal');
@@ -26,10 +31,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     const showingStart = document.getElementById('showing-start');
     const showingEnd = document.getElementById('showing-end');
     const totalItems = document.getElementById('total-items');
+    const logoutBtn = document.getElementById('logout-btn');
+    const addProductForm = document.getElementById('product-form');
+
 
     // Variables para paginación
     let currentPage = 1;
     let itemsPerPage = parseInt(itemsPerPageSelect.value);
+    let allProducts = []; // Para mantener la lista completa de productos
 
     // Función para mostrar mensajes de error/éxito
     const showMessage = (message, isError = false) => {
@@ -37,7 +46,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         notification.className = `notification ${isError ? 'error' : 'success'}`;
         notification.textContent = message;
         
-        // Asegurar que notificaciones anteriores no se sobrepongan
         const prevNotification = document.querySelector('.notification');
         if (prevNotification) {
             prevNotification.remove();
@@ -67,14 +75,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Función para manejar errores de fetch
     const handleFetchError = async (response) => {
-        const data = await response.json().catch(() => ({}));
+        const data = await response.json().catch(() => ({ message: 'Error de respuesta del servidor.' }));
         if (!response.ok) {
-            throw new Error(data.message || 'Error en la operación');
+            throw new Error(data.message || `Error ${response.status}: ${response.statusText}`);
         }
         return data;
     };
 
-    // Agregar después de handleFetchError
+    // Función de confirmación personalizada (reemplaza alert/confirm)
     const confirmAction = (message) => {
         return new Promise((resolve) => {
             const confirmModal = document.createElement('div');
@@ -149,11 +157,15 @@ document.addEventListener('DOMContentLoaded', async () => {
                 })
             });
 
-            await handleFetchError(response);
+            const userData = await handleFetchError(response); // El backend devuelve datos de usuario
+            showMessage('Inicio de sesión exitoso');
             authSection.style.display = 'none';
             productsSection.style.display = 'block';
             e.target.reset();
             await loadProducts();
+            // Aquí puedes usar userData.role para mostrar/ocultar elementos si es necesario
+            console.log("Usuario logeado:", userData.username, "Rol:", userData.role);
+
         } catch (error) {
             showMessage(error.message, true);
             console.error('Error en login:', error);
@@ -161,7 +173,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     // Eventos para productos
-    document.getElementById('logout-btn')?.addEventListener('click', async () => {
+    logoutBtn?.addEventListener('click', async () => {
         try {
             const confirmed = await confirmAction('¿Estás seguro de que deseas cerrar sesión?');
             if (!confirmed) return;
@@ -172,16 +184,20 @@ document.addEventListener('DOMContentLoaded', async () => {
             
             if (response.ok) {
                 showMessage('Sesión cerrada exitosamente');
-                document.getElementById('products-section').style.display = 'none';
-                document.getElementById('auth-section').style.display = 'block';
-                document.getElementById('login-form').style.display = 'block';
+                productsSection.style.display = 'none';
+                authSection.style.display = 'block';
+                loginDiv.style.display = 'block'; // Mostrar el formulario de login por defecto
+            } else {
+                const errorData = await response.json();
+                showMessage(errorData.message || 'Error al cerrar sesión', true);
             }
         } catch (error) {
-            showMessage('Error al cerrar sesión', true);
+            showMessage('Error de conexión al cerrar sesión', true);
+            console.error('Error al cerrar sesión:', error);
         }
     });
 
-    document.getElementById('product-form')?.addEventListener('submit', async (e) => {
+    addProductForm?.addEventListener('submit', async (e) => {
         e.preventDefault();
         const formData = new FormData(e.target);
         const product = {
@@ -200,7 +216,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             el.classList.remove('error');
         });
 
-        // Validar datos
+        // Validar datos usando la función importada
         const validation = validateProduct(product);
         if (!validation.isValid) {
             Object.entries(validation.errors).forEach(([field, message]) => {
@@ -226,13 +242,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             await handleFetchError(response);
             showMessage('Producto agregado exitosamente');
             e.target.reset();
-            await loadProducts();
+            await loadProducts(); // Recargar productos después de agregar
         } catch (error) {
             showMessage(error.message, true);
+            console.error('Error al agregar producto:', error);
         }
     });
-
-    let allProducts = []; // Para mantener la lista completa de productos
 
     async function loadProducts() {
         try {
@@ -244,6 +259,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         } catch (error) {
             showMessage(error.message, true);
             console.error('Error cargando productos:', error);
+            productsTbody.innerHTML = '<tr><td colspan="6" class="text-center">Error al cargar productos.</td></tr>';
         }
     }
 
@@ -285,24 +301,23 @@ document.addEventListener('DOMContentLoaded', async () => {
         return filtered;
     }
 
-    function renderProducts(products) {
+    function renderProducts(productsToRender) {
         const startIndex = (currentPage - 1) * itemsPerPage;
         const endIndex = startIndex + itemsPerPage;
-        const paginatedProducts = products.slice(startIndex, endIndex);
+        const paginatedProducts = productsToRender.slice(startIndex, endIndex);
         
         // Actualizar información de paginación
-        showingStart.textContent = products.length ? startIndex + 1 : 0;
-        showingEnd.textContent = Math.min(endIndex, products.length);
-        totalItems.textContent = products.length;
+        showingStart.textContent = productsToRender.length ? startIndex + 1 : 0;
+        showingEnd.textContent = Math.min(endIndex, productsToRender.length);
+        totalItems.textContent = productsToRender.length;
         
         // Actualizar estado de botones
         prevPageBtn.disabled = currentPage === 1;
-        nextPageBtn.disabled = endIndex >= products.length;
+        nextPageBtn.disabled = endIndex >= productsToRender.length;
         currentPageSpan.textContent = `Página ${currentPage}`;
 
         // Renderizar productos
-        const tbody = document.getElementById('products-tbody');
-        tbody.innerHTML = paginatedProducts.map((product, index) => `
+        productsTbody.innerHTML = paginatedProducts.map((product, index) => `
             <tr style="animation-delay: ${index * 0.05}s">
                 <td>${product.id}</td>
                 <td>${product.name}</td>
@@ -311,10 +326,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                 <td class="stock-column ${product.stock <= 5 ? 'low-stock' : ''}">${product.stock}</td>
                 <td class="actions-column">
                     <div class="btn-group">
-                        <button onclick="editProduct(${product.id})" class="btn btn-primary btn-sm">
+                        <button onclick="window.editProduct(${product.id})" class="btn btn-primary btn-sm">
                             Editar
                         </button>
-                        <button onclick="deleteProduct(${product.id})" class="btn btn-danger btn-sm">
+                        <button onclick="window.deleteProduct(${product.id})" class="btn btn-danger btn-sm">
                             Eliminar
                         </button>
                     </div>
@@ -326,7 +341,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Event listeners para paginación
     itemsPerPageSelect?.addEventListener('change', (e) => {
         itemsPerPage = parseInt(e.target.value);
-        currentPage = 1;
+        currentPage = 1; // Resetear a la primera página al cambiar el número de ítems
         renderProducts(filterProducts(allProducts));
     });
 
@@ -348,70 +363,27 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Agregar los event listeners para filtros
     searchInput?.addEventListener('input', () => {
+        currentPage = 1; // Resetear a la primera página al cambiar el filtro
         renderProducts(filterProducts(allProducts));
     });
 
     sortBySelect?.addEventListener('change', () => {
+        currentPage = 1; // Resetear a la primera página al cambiar el filtro
         renderProducts(filterProducts(allProducts));
     });
 
     stockFilterSelect?.addEventListener('change', () => {
+        currentPage = 1; // Resetear a la primera página al cambiar el filtro
         renderProducts(filterProducts(allProducts));
     });
 
-    productList?.addEventListener('item-create', async (e) => {
-        try {
-            const response = await fetch('/api/v1/products', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(e.detail)
-            });
-            await handleFetchError(response);
-            await loadProducts();
-            showMessage('Producto creado exitosamente');
-        } catch (error) {
-            showMessage('Error al crear producto', true);
-            console.error('Error creando producto:', error);
-        }
-    });
-
-    productList?.addEventListener('item-delete', async (e) => {
-        try {
-            const response = await fetch(`/api/v1/products/${e.detail.id}`, {
-                method: 'DELETE'
-            });
-            await handleFetchError(response);
-            await loadProducts();
-            showMessage('Producto eliminado exitosamente');
-        } catch (error) {
-            showMessage('Error al eliminar producto', true);
-            console.error('Error eliminando producto:', error);
-        }
-    });
-
-    productList?.addEventListener('item-edit', async (e) => {
-        try {
-            const response = await fetch(`/api/v1/products/${e.detail.id}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(e.detail)
-            });
-            await handleFetchError(response);
-            await loadProducts();
-            showMessage('Producto actualizado exitosamente');
-        } catch (error) {
-            showMessage('Error al actualizar producto', true);
-            console.error('Error actualizando producto:', error);
-        }
-    });
-
     // Asignar las implementaciones a las funciones globales
-    editProduct = async (id) => {
+    window.editProduct = async (id) => {
         try {
-            const response = await fetch(`/api/v1/products/${id}`);
+            const response = await fetch(`/api/v1/products/${id}`, { credentials: 'include' });
             const product = await handleFetchError(response);
             
-            // Llenar el formulario
+            // Llenar el formulario del modal
             document.getElementById('edit-id').value = product.id;
             document.getElementById('edit-name').value = product.name;
             document.getElementById('edit-description').value = product.description;
@@ -421,23 +393,24 @@ document.addEventListener('DOMContentLoaded', async () => {
             // Mostrar modal
             editModal.classList.add('show');
         } catch (error) {
-            showMessage('Error al cargar el producto', true);
-            console.error('Error cargando producto:', error);
+            showMessage('Error al cargar el producto para edición', true);
+            console.error('Error cargando producto para edición:', error);
         }
     };
 
-    deleteProduct = async (id) => {
+    window.deleteProduct = async (id) => {
         try {
             const confirmed = await confirmAction('¿Estás seguro de que deseas eliminar este producto?');
             if (!confirmed) return;
 
             const response = await fetch(`/api/v1/products/${id}`, {
-                method: 'DELETE'
+                method: 'DELETE',
+                credentials: 'include'
             });
 
             await handleFetchError(response);
             showMessage('Producto eliminado exitosamente');
-            await loadProducts();
+            await loadProducts(); // Recargar productos después de eliminar
         } catch (error) {
             showMessage('Error al eliminar el producto', true);
             console.error('Error eliminando producto:', error);
@@ -457,34 +430,54 @@ document.addEventListener('DOMContentLoaded', async () => {
         const formData = new FormData(e.target);
         const id = formData.get('id');
 
+        const updatedProduct = {
+            name: formData.get('name'),
+            description: formData.get('description'),
+            price: parseFloat(formData.get('price')),
+            stock: parseInt(formData.get('stock'))
+        };
+
+        // Limpiar errores anteriores del modal
+        editModal.querySelectorAll('.error-message').forEach(el => {
+            el.textContent = '';
+            el.classList.remove('show');
+        });
+        editModal.querySelectorAll('input').forEach(el => {
+            el.classList.remove('error');
+        });
+
+        const validation = validateProduct(updatedProduct);
+        if (!validation.isValid) {
+            Object.entries(validation.errors).forEach(([field, message]) => {
+                const input = document.getElementById(`edit-${field}`); // Asegúrate de que los IDs coincidan
+                const errorEl = editModal.querySelector(`[data-for="${field}"]`);
+                
+                if (input && errorEl) {
+                    input.classList.add('error');
+                    errorEl.textContent = message;
+                    errorEl.classList.add('show');
+                }
+            });
+            return;
+        }
+
         try {
             const response = await fetch(`/api/v1/products/${id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    name: formData.get('name'),
-                    description: formData.get('description'),
-                    price: parseFloat(formData.get('price')),
-                    stock: parseInt(formData.get('stock'))
-                })
+                body: JSON.stringify(updatedProduct),
+                credentials: 'include'
             });
 
             await handleFetchError(response);
             showMessage('Producto actualizado exitosamente');
             editModal.classList.remove('show');
             e.target.reset();
-            await loadProducts();
+            await loadProducts(); // Recargar productos después de actualizar
         } catch (error) {
             showMessage(error.message, true);
             console.error('Error actualizando producto:', error);
         }
-    });
-
-    // Event listeners para cerrar el modal
-    closeModalButtons?.forEach(button => {
-        button.addEventListener('click', () => {
-            editModal.classList.remove('show');
-        });
     });
 
     // Cerrar modal al hacer click fuera de él
@@ -502,17 +495,19 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
             
             if (response.ok) {
+                const userData = await response.json(); // Obtener datos de usuario
+                console.log("Sesión activa para:", userData.username, "Rol:", userData.role);
                 authSection.style.display = 'none';
                 productsSection.style.display = 'block';
                 await loadProducts();
             } else {
-                throw new Error('Sesión inválida');
+                throw new Error('Sesión inválida o no activa');
             }
         } catch (error) {
             console.error('Error verificando sesión:', error);
             authSection.style.display = 'block';
             productsSection.style.display = 'none';
-            loginDiv.style.display = 'block';
+            loginDiv.style.display = 'block'; // Mostrar el formulario de login por defecto
         }
     }
 

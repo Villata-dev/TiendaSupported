@@ -1,22 +1,22 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"log"
 	"net/http"
 	"strconv"
 	"time"
 
-	"tiendasupported/modules" // Cambiado de "../modules"
-
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
+	"modules/models" // Actualiza esta línea
 )
 
 var (
-	products     = make([]modules.Product, 0)
-	users        = make([]modules.User, 0)
-	sessions     = make([]modules.Session, 0)
+	products     = make([]models.Product, 0)
+	users        = make([]models.User, 0)
+	sessions     = make([]models.Session, 0)
 	productIDSeq = 1
 	userIDSeq    = 1
 )
@@ -34,6 +34,7 @@ func main() {
 	mux.HandleFunc("/api/auth/register", registerHandler)
 	mux.HandleFunc("/api/auth/login", loginHandler)
 	mux.HandleFunc("/api/auth/logout", logoutHandler)
+	mux.HandleFunc("/api/auth/check-session", checkSessionHandler) // Nueva ruta para verificar sesión
 
 	log.Println("Servidor iniciado en http://localhost:8080")
 	log.Printf("Iniciando servidor con %d productos y %d usuarios", len(products), len(users))
@@ -43,27 +44,52 @@ func main() {
 // Middleware de autenticación
 func authMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		cookie, err := r.Cookie("session_id")
+		// Configurar CORS
+		w.Header().Set("Access-Control-Allow-Origin", "http://localhost:8080")
+		w.Header().Set("Access-Control-Allow-Credentials", "true")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		log.Printf("Verificando autenticación para: %s", r.URL.Path)
+
+		// Verificar cookie de sesión
+		cookie, err := r.Cookie("session_token")
 		if err != nil {
+			log.Printf("Cookie no encontrada: %v", err)
 			http.Error(w, "No autorizado", http.StatusUnauthorized)
 			return
 		}
 
+		log.Printf("Cookie encontrada: %s", cookie.Value)
+
 		// Buscar sesión válida
-		var validSession *modules.Session
+		var validSession *models.Session
 		for _, session := range sessions {
-			if session.ID == cookie.Value && session.ExpiresAt.After(time.Now()) {
-				validSession = &session
-				break
+			if session.ID == models.SessionID(cookie.Value) {
+				if session.ExpiresAt.After(time.Now()) {
+					validSession = &session
+					log.Printf("Sesión válida encontrada para usuario ID: %d", session.UserID)
+					break
+				} else {
+					log.Printf("Sesión expirada para usuario ID: %d", session.UserID)
+				}
 			}
 		}
 
 		if validSession == nil {
+			log.Printf("No se encontró sesión válida para el token: %s", cookie.Value)
 			http.Error(w, "Sesión inválida", http.StatusUnauthorized)
 			return
 		}
 
-		next.ServeHTTP(w, r)
+		// Añadir información de usuario al contexto
+		ctx := context.WithValue(r.Context(), "userID", validSession.UserID)
+		next.ServeHTTP(w, r.WithContext(ctx))
 	}
 }
 
@@ -102,7 +128,7 @@ func registerHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Crear nuevo usuario
-	newUser := modules.User{
+	newUser := models.User{
 		ID:           userIDSeq,
 		Username:     credentials.Username,
 		PasswordHash: string(hashedPassword),
@@ -142,7 +168,7 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Usuarios registrados: %+v", users)
 
 	// Buscar usuario
-	var user *modules.User
+	var user *models.User
 	for i := range users {
 		if users[i].Username == credentials.Username {
 			user = &users[i] // Importante: usar la referencia al elemento del slice
@@ -163,30 +189,30 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Crear sesión
-	session := modules.Session{
-		ID:        uuid.New().String(),
+	// Modificar la creación de la sesión
+	session := models.Session{
+		ID:        models.SessionID(uuid.New().String()),
 		UserID:    user.ID,
 		CreatedAt: time.Now(),
 		ExpiresAt: time.Now().Add(24 * time.Hour),
 	}
 	sessions = append(sessions, session)
 
-	// Establecer cookie
+	// Establecer cookie con configuración correcta
 	http.SetCookie(w, &http.Cookie{
-		Name:     "session_id",
-		Value:    session.ID,
-		Expires:  session.ExpiresAt,
-		HttpOnly: true,
+		Name:     "session_token",
+		Value:    string(session.ID), // Convertir SessionID a string
 		Path:     "/",
+		HttpOnly: true,
+		Secure:   false,
+		SameSite: http.SameSiteLaxMode,
+		MaxAge:   86400, // 24 horas
 	})
 
-	w.Header().Set("Content-Type", "application/json")
+	// Responder con JSON
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]string{
-		"message":  "Login exitoso",
-		"userId":   strconv.Itoa(user.ID),
-		"username": user.Username,
+		"message": "Login exitoso",
 	})
 }
 
@@ -201,7 +227,7 @@ func productsHandler(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(products)
 
 	case http.MethodPost:
-		var product modules.Product
+		var product models.Product
 		if err := json.NewDecoder(r.Body).Decode(&product); err != nil {
 			log.Printf("Error decodificando producto: %v", err)
 			http.Error(w, err.Error(), http.StatusBadRequest)
@@ -254,7 +280,7 @@ func productHandler(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(products[productIndex])
 
 	case http.MethodPut:
-		var updatedProduct modules.Product
+		var updatedProduct models.Product
 		if err := json.NewDecoder(r.Body).Decode(&updatedProduct); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
@@ -284,15 +310,53 @@ func logoutHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Eliminar cookie
+	// Corregir el nombre de la cookie
 	http.SetCookie(w, &http.Cookie{
-		Name:     "session_id",
+		Name:     "session_token", // Cambiar de session_id a session_token
 		Value:    "",
-		Expires:  time.Now().Add(-1 * time.Hour),
-		HttpOnly: true,
 		Path:     "/",
+		HttpOnly: true,
+		Expires:  time.Now().Add(-1 * time.Hour),
 	})
 
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]string{"message": "Logout exitoso"})
+}
+
+// Agregar nuevo handler
+func checkSessionHandler(w http.ResponseWriter, r *http.Request) {
+	log.Printf("Verificando sesión")
+
+	if r.Method != http.MethodGet {
+		http.Error(w, "Método no permitido", http.StatusMethodNotAllowed)
+		return
+	}
+
+	cookie, err := r.Cookie("session_token")
+	if err != nil {
+		log.Printf("Error al obtener cookie en check-session: %v", err)
+		http.Error(w, "No autenticado", http.StatusUnauthorized)
+		return
+	}
+
+	// Buscar sesión válida
+	var validSession *models.Session
+	for _, session := range sessions {
+		if session.ID == models.SessionID(cookie.Value) && session.ExpiresAt.After(time.Now()) {
+			validSession = &session
+			break
+		}
+	}
+
+	if validSession == nil {
+		log.Printf("Sesión no válida en check-session")
+		http.Error(w, "Sesión inválida", http.StatusUnauthorized)
+		return
+	}
+
+	log.Printf("Sesión válida encontrada")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{
+		"message": "Sesión válida",
+	})
 }
